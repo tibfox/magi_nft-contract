@@ -1664,3 +1664,21 @@ func (v BaseURIChangeAttributes) MarshalTinyJSON(out *jwriter.Writer) {
 	out.String(v.NewURI)
 	out.RawByte('}')
 }
+
+// PropertiesSetEvent
+func (v PropertiesSetEvent) MarshalTinyJSON(out *jwriter.Writer) {
+	out.RawByte('{')
+	out.RawString(`"type":`)
+	out.String(v.Type)
+	out.RawString(`,"attributes":`)
+	v.Attributes.MarshalTinyJSON(out)
+	out.RawByte('}')
+}
+
+// PropertiesSetAttributes
+func (v PropertiesSetAttributes) MarshalTinyJSON(out *jwriter.Writer) {
+	out.RawByte('{')
+	out.RawString(`"id":`)
+	out.String(v.Id)
+	out.RawByte('}')
+}

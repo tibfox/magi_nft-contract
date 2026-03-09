@@ -280,6 +280,7 @@ func Mint(payload *string) *string {
 		// Set properties on first mint if provided
 		if p.Properties != "" {
 			setTokenProperties(p.Id, p.Properties)
+			emitPropertiesSet(p.Id)
 		}
 	} else {
 		// Subsequent mint - use existing maxSupply, but validate if provided
@@ -391,6 +392,7 @@ func MintBatch(payload *string) *string {
 			// Set properties on first mint if provided
 			if payloadProperties != "" {
 				setTokenProperties(p.Ids[i], payloadProperties)
+				emitPropertiesSet(p.Ids[i])
 			}
 		} else {
 			// Subsequent mint - use existing maxSupply, but validate if provided
@@ -962,6 +964,7 @@ func SetProperties(payload *string) *string {
 	}
 
 	setTokenProperties(p.Id, p.Properties)
+	emitPropertiesSet(p.Id)
 	return jsonResponse(SuccessResponse{Success: true})
 }
 

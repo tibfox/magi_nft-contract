@@ -71,7 +71,7 @@ func CallContract(
 		ContractId: ContractID,
 		Action:     action,
 		Payload:    payload,
-		RcLimit:    10000,
+		RcLimit:    100000,
 		Intents:    intents,
 	})
 

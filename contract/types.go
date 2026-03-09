@@ -358,3 +358,13 @@ type BaseURIChangeAttributes struct {
 	PreviousURI string `json:"previousUri"`
 	NewURI      string `json:"newUri"`
 }
+
+// PropertiesSetEvent for property updates
+type PropertiesSetEvent struct {
+	Type       string                  `json:"type"`
+	Attributes PropertiesSetAttributes `json:"attributes"`
+}
+
+type PropertiesSetAttributes struct {
+	Id string `json:"id"`
+}

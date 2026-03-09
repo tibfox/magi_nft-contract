@@ -173,3 +173,17 @@ func emitBaseURIChange(previousURI, newURI string) {
 	event.MarshalTinyJSON(&w)
 	sdk.Log(string(w.Buffer.BuildBytes()))
 }
+
+// ======================
+// PropertiesSet Event
+// ======================
+
+func emitPropertiesSet(id string) {
+	event := PropertiesSetEvent{
+		Type:       "propertiesSet",
+		Attributes: PropertiesSetAttributes{Id: id},
+	}
+	w := jwriter.Writer{}
+	event.MarshalTinyJSON(&w)
+	sdk.Log(string(w.Buffer.BuildBytes()))
+}
