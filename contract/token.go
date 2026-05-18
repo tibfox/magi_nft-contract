@@ -359,9 +359,14 @@ func Allowance(payload *string) *string {
 func Mint(payload *string) *string {
 	assertInit()
 	assertNotPaused()
-	owner, isOwner := getOwner()
-	if !isOwner {
-		sdk.Abort("Must be owner to mint")
+	caller := sdk.GetEnvKey("msg.caller")
+	if caller == nil {
+		sdk.Abort("Caller required")
+	}
+	operator := *caller
+	ownerAddr := getOwnerAddress()
+	if !isApprovedOrOwner(operator, ownerAddr) {
+		sdk.Abort("Must be owner or approved operator to mint")
 	}
 	if payload == nil || *payload == "" {
 		sdk.Abort("Payload required")
@@ -438,7 +443,7 @@ func Mint(payload *string) *string {
 
 	incBalance(p.To, p.Id, p.Amount)
 	incTotalSupply(p.Id, p.Amount)
-	emitTransferSingle(owner, "", p.To, p.Id, p.Amount) // Mint: from is zero address
+	emitTransferSingle(operator, "", p.To, p.Id, p.Amount) // Mint: from is zero address, operator is caller
 	return jsonResponse(SuccessResponse{Success: true})
 }
 
