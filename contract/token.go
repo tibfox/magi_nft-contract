@@ -365,9 +365,6 @@ func Mint(payload *string) *string {
 	}
 	operator := *caller
 	ownerAddr := getOwnerAddress()
-	if !isApprovedOrOwner(operator, ownerAddr) {
-		sdk.Abort("Must be owner or approved operator to mint")
-	}
 	if payload == nil || *payload == "" {
 		sdk.Abort("Payload required")
 	}
@@ -414,6 +411,18 @@ func Mint(payload *string) *string {
 		emitTokenCreated(p.Id, p.MaxSupply, p.Soulbound)
 		return jsonResponse(SuccessResponse{Success: true})
 	}
+
+	// Mint authorization: owner or owner-approved operator mints uncapped
+	// (up to maxSupply); otherwise a per-token allowance the owner granted
+	// via approve is required and decremented per mint (ERC-6909).
+	if !isApprovedOrOwner(operator, ownerAddr) {
+		allowed := getAllowance(ownerAddr, operator, p.Id)
+		if allowed < p.Amount {
+			sdk.Abort("Must be owner or approved operator to mint")
+		}
+		setAllowance(ownerAddr, operator, p.Id, allowed-p.Amount)
+	}
+
 	var maxSupply uint64
 	if existingMax == 0 {
 		// First mint - maxSupply is required
@@ -635,9 +644,6 @@ func MintSeries(payload *string) *string {
 	}
 	operator := *caller
 	ownerAddr := getOwnerAddress()
-	if !isApprovedOrOwner(operator, ownerAddr) {
-		sdk.Abort("Must be owner or approved operator to mint")
-	}
 	if payload == nil || *payload == "" {
 		sdk.Abort("Payload required")
 	}
@@ -662,6 +668,10 @@ func MintSeries(payload *string) *string {
 	if defineOnly && operator != ownerAddr {
 		sdk.Abort("Only owner can define an edition")
 	}
+	// Mint authorization: owner or owner-approved operator mints uncapped
+	// (up to maxSupply); otherwise a per-token allowance is required and
+	// decremented per generated id (ERC-6909, mirrors safeBatchTransferFrom).
+	useAllowance := !defineOnly && !isApprovedOrOwner(operator, ownerAddr)
 	if p.MaxSupply == 0 {
 		sdk.Abort("MaxSupply required (1 = unique, >1 = editioned)")
 	}
@@ -718,6 +728,14 @@ func MintSeries(payload *string) *string {
 		}
 		ids[i] = id
 		amounts[i] = p.Amount
+
+		if useAllowance {
+			allowed := getAllowance(ownerAddr, operator, id)
+			if allowed < p.Amount {
+				sdk.Abort("Must be owner or approved operator to mint")
+			}
+			setAllowance(ownerAddr, operator, id, allowed-p.Amount)
+		}
 
 		existingMax := getMaxSupply(id)
 		if existingMax == 0 {

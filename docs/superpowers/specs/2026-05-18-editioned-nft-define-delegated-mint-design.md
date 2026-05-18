@@ -43,8 +43,8 @@ approval mechanism.
 | Question | Decision |
 |---|---|
 | Define-without-mint API | Generalize existing `Mint`/`MintSeries` with `amount == 0`; no new exports |
-| Who may mint a defined edition | Owner **or** an operator approved by the owner via existing `SetApprovalForAll` |
-| Mint cap for approved markets | `maxSupply` only — no per-token allowance cap on minting |
+| Who may mint a defined edition | Owner; an operator approved via `SetApprovalForAll` (uncapped, up to `maxSupply`); **or** a spender the owner gave a per-token `approve` allowance (capped, decremented per mint) |
+| Mint cap for approved markets | Operator approval = uncapped (up to `maxSupply`). Per-token `approve` allowance = capped at the granted amount, decremented per mint (ERC-6909). *(Revised 2026-05-18: per-token allowance now also authorizes minting.)* |
 | Who may *define* an edition | **Owner only** (operators may mint, not define) |
 | Branch base | Local `main` hard-reset to `upstream/main`; feature branched from it |
 
@@ -71,7 +71,15 @@ if !isApprovedOrOwner(caller, ownerAddr) {
 
 - `getOwnerAddress()` (`contract/main.go:52`) returns the owner without a redundant
   `msg.caller` read; `caller` is read once and reused.
-- The owner authorizes a market with the existing `setApprovalForAll(market, true)`.
+- The owner authorizes a market either with `setApprovalForAll(market, true)`
+  (uncapped) or with a per-token `approve(spender=market, id, amount=N)` allowance
+  (capped at N). The mint authorization mirrors `safeTransferFrom`: if the caller is
+  not owner and not an approved operator, fall back to the per-token allowance
+  `getAllowance(ownerAddr, operator, id)`; require `allowance >= amount` and
+  `setAllowance(... allowance-amount)` (decrement per mint). For `mintSeries` the
+  allowance is checked and decremented per generated id (mirrors
+  `safeBatchTransferFrom`). Define-only (`amount == 0`) remains owner-only and never
+  consults allowance.
 - The mint cap is unchanged: the existing "subsequent mint" path enforces `maxSupply`
   (via `totalMinted` when `trackMinted` is on, else `totalSupply`).
 - **Provenance fix:** the mint `TransferSingle` / `TransferBatch` `operator` field becomes
@@ -118,8 +126,8 @@ unminted edition also exists.
 ### Out of scope (YAGNI)
 
 - `MintBatch` keeps requiring `amount > 0`; mixed per-element define/mint is not needed.
-- No per-token allowance cap on minting.
-- No new exports, events, state keys, or approval mechanism.
+- No new exports, events, state keys, or approval mechanism (per-token allowance reuses
+  the existing `approve`/`allowance` ERC-6909 functions).
 - No payment/pricing logic — the market handles selling; the contract only authorizes the mint.
 
 ## Edge cases
