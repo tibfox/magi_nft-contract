@@ -1288,7 +1288,8 @@ func Exists(payload *string) *string {
 		sdk.Abort("Token ID required")
 	}
 
-	// A token exists if it has a maxSupply set (meaning it was minted at least once)
+	// A token exists once its maxSupply is set — either by a mint or by a
+	// define-only call (mint/mintSeries with amount == 0), even at zero supply.
 	exists := getMaxSupply(p.Id) > 0
 	return jsonResponse(ExistsResponse{Exists: exists})
 }
