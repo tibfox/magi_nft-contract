@@ -379,20 +379,41 @@ func Mint(payload *string) *string {
 		sdk.Abort("Invalid payload")
 	}
 
-	if p.To == "" {
-		sdk.Abort("To address required")
+	if p.Amount != 0 {
+		if p.To == "" {
+			sdk.Abort("To address required")
+		}
+		validateAddress(p.To)
 	}
-	validateAddress(p.To)
 	if p.Id == "" {
 		sdk.Abort("Token ID required")
 	}
 	validateTokenId(p.Id)
-	if p.Amount == 0 {
-		sdk.Abort("Amount must be greater than 0")
-	}
 
-	// Check/set max supply for this token
 	existingMax := getMaxSupply(p.Id)
+
+	// Define-only mode: amount == 0 registers an edition without minting.
+	if p.Amount == 0 {
+		if operator != ownerAddr {
+			sdk.Abort("Only owner can define an edition")
+		}
+		if existingMax != 0 {
+			sdk.Abort("Edition already defined")
+		}
+		if p.MaxSupply == 0 {
+			sdk.Abort("MaxSupply required for new token (1 = unique, >1 = editioned)")
+		}
+		setMaxSupply(p.Id, p.MaxSupply)
+		if p.Soulbound {
+			setSoulbound(p.Id)
+		}
+		if p.Properties != "" {
+			setTokenProperties(p.Id, p.Properties)
+			emitPropertiesSet(p.Id)
+		}
+		emitTokenCreated(p.Id, p.MaxSupply, p.Soulbound)
+		return jsonResponse(SuccessResponse{Success: true})
+	}
 	var maxSupply uint64
 	if existingMax == 0 {
 		// First mint - maxSupply is required

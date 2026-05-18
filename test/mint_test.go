@@ -85,11 +85,15 @@ func TestMintFailsIfPaused(t *testing.T) {
 	CallContract(t, ct, "mint", payload, nil, ownerAddress, false, uint(150_000_000), "")
 }
 
-func TestMintFailsWithZeroAmount(t *testing.T) {
+// amount:0 is no longer an error — it defines an edition without minting
+// (owner-only). See editioned_define_test.go for full define behavior.
+func TestMintZeroAmountDefinesEdition(t *testing.T) {
 	ct := SetupContractTest()
 	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
-	payload := []byte(`{"to":"hive:tibfox","id":"1","amount":0,"maxSupply":100,"data":""}`)
-	CallContract(t, ct, "mint", payload, nil, ownerAddress, false, uint(150_000_000), "")
+	payload := []byte(`{"id":"1","amount":0,"maxSupply":100,"data":""}`)
+	CallContract(t, ct, "mint", payload, nil, ownerAddress, true, uint(150_000_000), "")
+	// Defined, but nothing minted yet.
+	CallContract(t, ct, "totalSupply", []byte(`{"id":"1"}`), nil, ownerAddress, true, uint(150_000_000), `{"totalSupply":0}`)
 }
 
 func TestMintFailsWithZeroMaxSupply(t *testing.T) {
