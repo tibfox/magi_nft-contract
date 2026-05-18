@@ -608,9 +608,14 @@ func MintBatch(payload *string) *string {
 func MintSeries(payload *string) *string {
 	assertInit()
 	assertNotPaused()
-	owner, isOwner := getOwner()
-	if !isOwner {
-		sdk.Abort("Must be owner to mint")
+	caller := sdk.GetEnvKey("msg.caller")
+	if caller == nil {
+		sdk.Abort("Caller required")
+	}
+	operator := *caller
+	ownerAddr := getOwnerAddress()
+	if !isApprovedOrOwner(operator, ownerAddr) {
+		sdk.Abort("Must be owner or approved operator to mint")
 	}
 	if payload == nil || *payload == "" {
 		sdk.Abort("Payload required")
@@ -736,7 +741,7 @@ func MintSeries(payload *string) *string {
 			incTotalSupply(id, p.Amount)
 		}
 	}
-	emitTransferBatch(owner, "", p.To, ids, amounts) // Mint: from is zero address
+	emitTransferBatch(operator, "", p.To, ids, amounts) // Mint: from is zero address, operator is caller
 
 	// Emit template relationship if propertiesTemplate is set
 	if p.PropertiesTemplate != "" {

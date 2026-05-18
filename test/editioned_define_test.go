@@ -51,3 +51,26 @@ func TestDelegatedMintAfterRevokeFails(t *testing.T) {
 		[]byte(`{"to":"hive:buyer","id":"ed1","amount":1,"maxSupply":10,"data":""}`),
 		nil, "hive:market", false, uint(150_000_000), "")
 }
+
+// Owner-approved market mints a generated series to a buyer.
+func TestDelegatedMintSeriesByApprovedOperator(t *testing.T) {
+	ct := SetupContractTest()
+	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "setApprovalForAll",
+		[]byte(`{"operator":"hive:market","approved":true}`),
+		nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "mintSeries",
+		[]byte(`{"to":"hive:buyer","idPrefix":"card-","startNumber":1,"count":3,"amount":1,"maxSupply":1}`),
+		nil, "hive:market", true, uint(150_000_000), "")
+	CallContract(t, ct, "balanceOf",
+		[]byte(`{"account":"hive:buyer","id":"card-2"}`),
+		nil, "hive:buyer", true, uint(150_000_000), `{"balance":1}`)
+}
+
+func TestDelegatedMintSeriesUnauthorizedFails(t *testing.T) {
+	ct := SetupContractTest()
+	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "mintSeries",
+		[]byte(`{"to":"hive:buyer","idPrefix":"card-","startNumber":1,"count":2,"amount":1,"maxSupply":1}`),
+		nil, "hive:stranger", false, uint(150_000_000), "")
+}
