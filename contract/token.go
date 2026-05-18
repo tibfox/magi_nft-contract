@@ -649,15 +649,18 @@ func MintSeries(payload *string) *string {
 		sdk.Abort("Invalid payload")
 	}
 
-	if p.To == "" {
-		sdk.Abort("To address required")
+	if p.Amount != 0 {
+		if p.To == "" {
+			sdk.Abort("To address required")
+		}
+		validateAddress(p.To)
 	}
-	validateAddress(p.To)
 	if p.Count == 0 {
 		sdk.Abort("Count must be greater than 0")
 	}
-	if p.Amount == 0 {
-		sdk.Abort("Amount must be greater than 0")
+	defineOnly := p.Amount == 0
+	if defineOnly && operator != ownerAddr {
+		sdk.Abort("Only owner can define an edition")
 	}
 	if p.MaxSupply == 0 {
 		sdk.Abort("MaxSupply required (1 = unique, >1 = editioned)")
@@ -718,11 +721,7 @@ func MintSeries(payload *string) *string {
 
 		existingMax := getMaxSupply(id)
 		if existingMax == 0 {
-			// First mint — we know balance, totalSupply, totalMinted are all 0.
-			// Skip reads and write directly.
-			if p.Amount > p.MaxSupply {
-				sdk.Abort("Would exceed max supply")
-			}
+			// First touch — balance, totalSupply, totalMinted are all 0.
 			setMaxSupply(id, p.MaxSupply)
 			if p.Soulbound {
 				setSoulbound(id)
@@ -733,12 +732,19 @@ func MintSeries(payload *string) *string {
 				setTokenProperties(id, p.Properties)
 				emitPropertiesSet(id)
 			}
-			if trackMinted {
-				sdk.StateSetObject(totalMintedKey(id), string(u64ToBytes(p.Amount)))
-			}
-			setBalance(p.To, id, p.Amount)
-			sdk.StateSetObject(totalSupplyKey(id), string(u64ToBytes(p.Amount)))
 			emitTokenCreated(id, p.MaxSupply, p.Soulbound)
+			if !defineOnly {
+				if p.Amount > p.MaxSupply {
+					sdk.Abort("Would exceed max supply")
+				}
+				if trackMinted {
+					sdk.StateSetObject(totalMintedKey(id), string(u64ToBytes(p.Amount)))
+				}
+				setBalance(p.To, id, p.Amount)
+				sdk.StateSetObject(totalSupplyKey(id), string(u64ToBytes(p.Amount)))
+			}
+		} else if defineOnly {
+			sdk.Abort("Edition already defined")
 		} else {
 			// Subsequent mint — need to read existing state
 			if p.MaxSupply != existingMax {
@@ -762,7 +768,9 @@ func MintSeries(payload *string) *string {
 			incTotalSupply(id, p.Amount)
 		}
 	}
-	emitTransferBatch(operator, "", p.To, ids, amounts) // Mint: from is zero address, operator is caller
+	if !defineOnly {
+		emitTransferBatch(operator, "", p.To, ids, amounts) // Mint: from is zero address, operator is caller
+	}
 
 	// Emit template relationship if propertiesTemplate is set
 	if p.PropertiesTemplate != "" {

@@ -188,11 +188,14 @@ func TestMintSeriesFailsWithZeroCount(t *testing.T) {
 }
 
 
-func TestMintSeriesFailsWithZeroAmount(t *testing.T) {
+// amount:0 is no longer an error — it defines the series without minting
+// (owner-only). See editioned_define_test.go for full define behavior.
+func TestMintSeriesZeroAmountDefinesSeries(t *testing.T) {
 	ct := SetupContractTest()
 	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
-	payload := []byte(`{"to":"hive:tibfox","idPrefix":"card-","startNumber":1,"count":5,"amount":0,"maxSupply":1}`)
-	CallContract(t, ct, "mintSeries", payload, nil, ownerAddress, false, uint(150_000_000), "")
+	payload := []byte(`{"idPrefix":"card-","startNumber":1,"count":5,"amount":0,"maxSupply":1}`)
+	CallContract(t, ct, "mintSeries", payload, nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "totalSupply", []byte(`{"id":"card-3"}`), nil, ownerAddress, true, uint(150_000_000), `{"totalSupply":0}`)
 }
 
 func TestMintSeriesFailsWithZeroMaxSupply(t *testing.T) {

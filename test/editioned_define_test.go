@@ -134,3 +134,38 @@ func TestDefineEditionOperatorCannotDefine(t *testing.T) {
 		[]byte(`{"id":"drop1","amount":0,"maxSupply":5,"data":""}`),
 		nil, "hive:market", false, uint(150_000_000), "")
 }
+
+// Owner defines a whole series with zero supply; each id exists and is then mintable.
+func TestDefineEditionSeriesThenMint(t *testing.T) {
+	ct := SetupContractTest()
+	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
+
+	CallContract(t, ct, "mintSeries",
+		[]byte(`{"idPrefix":"set-","startNumber":1,"count":3,"amount":0,"maxSupply":10}`),
+		nil, ownerAddress, true, uint(150_000_000), "")
+
+	CallContract(t, ct, "exists",
+		[]byte(`{"id":"set-2"}`), nil, ownerAddress, true, uint(150_000_000), `{"exists":true}`)
+	CallContract(t, ct, "totalSupply",
+		[]byte(`{"id":"set-2"}`), nil, ownerAddress, true, uint(150_000_000), `{"totalSupply":0}`)
+
+	// Defined series id is mintable up to maxSupply.
+	CallContract(t, ct, "mint",
+		[]byte(`{"to":"hive:buyer","id":"set-2","amount":10,"data":""}`),
+		nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "mint",
+		[]byte(`{"to":"hive:buyer","id":"set-2","amount":1,"data":""}`),
+		nil, ownerAddress, false, uint(150_000_000), "")
+}
+
+// Defining a series is owner-only.
+func TestDefineEditionSeriesOperatorCannotDefine(t *testing.T) {
+	ct := SetupContractTest()
+	CallContract(t, ct, "init", DefaultInitPayload, nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "setApprovalForAll",
+		[]byte(`{"operator":"hive:market","approved":true}`),
+		nil, ownerAddress, true, uint(150_000_000), "")
+	CallContract(t, ct, "mintSeries",
+		[]byte(`{"idPrefix":"set-","startNumber":1,"count":2,"amount":0,"maxSupply":10}`),
+		nil, "hive:market", false, uint(150_000_000), "")
+}
