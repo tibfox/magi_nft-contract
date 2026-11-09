@@ -10,10 +10,17 @@ import (
 	"vsc-node/lib/test_utils"
 	contract_session "vsc-node/modules/contract/session"
 	"vsc-node/modules/db/vsc/contracts"
+	ledgerDb "vsc-node/modules/db/vsc/ledger"
 	stateEngine "vsc-node/modules/state-processing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// rcFundingHbd is the hbd balance handed to a call's RC payer before each call.
+// 1 RC == 1 hbd milliunit, so this is 1,000 HBD == 1,000,000 RC: comfortably
+// above the helper's RcLimit of 100,000, which keeps the RC limit rather than
+// the account balance as the gas ceiling.
+const rcFundingHbd int64 = 1_000_000
 
 // CallResult is an alias for the test call result type
 type CallResult = test_utils.ContractTestCallResult
@@ -60,6 +67,24 @@ func CallContract(
 ) CallResult {
 	fmt.Println(action)
 	fmt.Println(string(payload))
+	// Fund the RC payer before the call. The node derives a contract call's WASM
+	// gas budget from the caller's REMAINING RC — transactions.go computes
+	// gas = min(availableRC, RcLimit), and rc-system derives availableRC from the
+	// account's hbd balance plus the network's free allowance
+	// (params.RC_HIVE_FREE_AMOUNT, 10_000). RC is charged cumulatively across
+	// every call in a test, so an unfunded account runs out part-way through a
+	// multi-call test and later calls fail with "cost limit exceeded" and then
+	// "minimum RC requirement is not met" — not for anything the contract did.
+	//
+	// A funded caller is also the realistic case. Measured at this pin: init
+	// ~1,298 RC, a single mint ~800-1,500 RC, and a full 256-entry mintBatch
+	// 68,833 RC (6.88B gas) — so the 10,000 free allowance does not cover one
+	// maximum batch at all, and covers only a handful of single calls. Topping up
+	// keeps RcLimit (and each test's maxGas assertion) the binding limit, which is
+	// what these tests mean to measure. The NFT contract never reads hive
+	// balances, so this is invisible to contract logic.
+	ct.Deposit(authUser, rcFundingHbd, ledgerDb.AssetHbd)
+
 	result := ct.Call(stateEngine.TxVscCallContract{
 		Caller: authUser,
 
