@@ -1,6 +1,12 @@
 package main
 
-import "magi_nft/sdk"
+import (
+	// the custom-GC runtime must be linked in by the main package (the sdk
+	// package stays free of module-local imports so it can be copied verbatim)
+	_ "magi_nft/runtime"
+
+	"magi_nft/sdk"
+)
 
 // ========================================
 // MAGI Token Contract (ERC-1155 Based)
