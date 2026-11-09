@@ -684,13 +684,9 @@ magi_nft/
 | safeBatchTransferFrom  | ~139 per token |
 | burnBatch              | ~87 per token  |
 
-A caller's RC comes from its hbd balance plus the network's free allowance for
-Hive accounts (10,000 RC), and the node derives a call's WASM gas budget from
-the RC still available — `gas = min(availableRC, RcLimit)`. The free allowance
-therefore does not cover one maximum-size batch: a full 256-entry `mintBatch`
-measures **68,833 RC** (6.88B gas). Callers doing batch work need an hbd balance;
-an unfunded account gets `cost limit exceeded`, then
-`minimum RC requirement is not met`.
+Multiply by batch size as usual: a full 256-entry `mintBatch` measures 68,833 RC
+(6.88B gas), so batch callers need an hbd balance — RC is the hbd balance plus the
+10,000 free allowance, and the gas budget is `min(availableRC, RcLimit)`.
 
 ## Benchmark: Real-World Scenario
 
